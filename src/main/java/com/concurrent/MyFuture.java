@@ -32,6 +32,7 @@ public class MyFuture<V> implements RunnableFuture<V>{
 
     @Override
     public boolean isCancelled() {
+
         return false;
     }
 
@@ -56,7 +57,15 @@ public class MyFuture<V> implements RunnableFuture<V>{
 
     @Override
     public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-        return null;
+        final long deadline =  System.nanoTime() + unit.toNanos(timeout) ;
+        while (result==null){
+           long nanos = deadline - System.nanoTime();
+            if (nanos <= 0L) {
+
+               throw  new TimeoutException();
+            }
+        }
+        return result;
     }
 
     @Override
@@ -80,7 +89,7 @@ public class MyFuture<V> implements RunnableFuture<V>{
         }
     }
 
-    public static void main(String[] args) throws InterruptedException, ExecutionException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         MyFuture<String> myFuture = new MyFuture<>(new Callable<String>() {
             @Override
@@ -92,6 +101,7 @@ public class MyFuture<V> implements RunnableFuture<V>{
         executor.submit(myFuture);
         System.out.println("开始执行");
         System.out.println(myFuture.get());
+      //  System.out.println(myFuture.get(1000,TimeUnit.MILLISECONDS));
 
         FutureTask<String> future = new FutureTask<String>(new Callable<String>() {
             @Override
@@ -105,6 +115,7 @@ public class MyFuture<V> implements RunnableFuture<V>{
         executor.submit(future);
         System.out.println("开始执行");
         System.out.println(future.get());
+       // System.out.println(future.get(1000,TimeUnit.MILLISECONDS));
         executor.shutdown();
 
     }
