@@ -14,7 +14,7 @@ public class MyFuture<V> implements RunnableFuture<V>{
 
     private final Callable<V> callable;
 
-    private V result;
+    private volatile V result;
 
     ReentrantLock lock = new ReentrantLock();
 
@@ -56,15 +56,17 @@ public class MyFuture<V> implements RunnableFuture<V>{
     }
 
     @Override
-    public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-//        final long deadline =  System.nanoTime() + unit.toNanos(timeout) ;
-////        while (result==null){
-////           long nanos = deadline - System.nanoTime();
-////            if (nanos <= 0L) {
-////
-////               throw  new TimeoutException();
-////            }
-////        }
+    public V get(long timeout, TimeUnit unit) throws  TimeoutException {
+        final long deadline =  System.nanoTime() + unit.toNanos(timeout) ;
+       while (result==null){
+
+          long nanos = deadline - System.nanoTime();
+          // System.out.println("get:"+result);
+           if (nanos <= 0L) {
+
+              throw  new TimeoutException();
+           }
+       }
       return result;
     }
 
@@ -76,15 +78,16 @@ public class MyFuture<V> implements RunnableFuture<V>{
                 result=c.call();
 
                 b=true;
+
+                lock.lock();
+                condition.signalAll();
+                lock.unlock();
             } catch (Exception e) {
                 e.printStackTrace();
                 result = null;
                 b = false;
             }
 
-            lock.lock();
-            condition.signalAll();
-            lock.unlock();
 
         }
     }
@@ -94,14 +97,15 @@ public class MyFuture<V> implements RunnableFuture<V>{
         MyFuture<String> myFuture = new MyFuture<>(new Callable<String>() {
             @Override
             public String call() throws Exception {
-                Thread.sleep(10000);
+                Thread.sleep(1000);
                 return "my hello world!";
             }
         });
         executor.submit(myFuture);
-        System.out.println("开始执行");
-      System.out.println(myFuture.get());
-
+     //   Thread.sleep(1000);
+      System.out.println("开始执行");
+  //  System.out.println(myFuture.get());
+        System.out.println(myFuture.get(10000,TimeUnit.MILLISECONDS));
 
         FutureTask<String> future = new FutureTask<String>(new Callable<String>() {
             @Override
@@ -115,7 +119,7 @@ public class MyFuture<V> implements RunnableFuture<V>{
         executor.submit(future);
         System.out.println("开始执行");
         System.out.println(future.get());
-       // System.out.println(future.get(1000,TimeUnit.MILLISECONDS));
+      System.out.println(future.get(1000,TimeUnit.MILLISECONDS));
         executor.shutdown();
 
     }
